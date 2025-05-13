@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Roguelike</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #1a1a1a;
+            font-family: 'Courier New', monospace;
+            color: white;
+            padding: 10px;
+        }
+        .game-container {
+            text-align: center;
+            max-width: 100%;
+        }
+        #game-board {
+            display: inline-grid;
+            gap: 1px;
+            background-color: #333;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 20px;
+        }
+        .tile {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 3px;
+            transition: transform 0.15s ease;
+        }
+        .tile.animate {
+            transform: scale(1.2);
+        }
+        .floor {
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        .wall {
+            background-color: #666;
+        }
+        .player {
+            background-color: #4CAF50;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        .enemy {
+            background-color: #f44336;
+            color: white;
+            transition: all 0.2s ease;
+        }
+        .item {
+            background-color: #2196F3;
+            color: white;
+        }
+        .exit {
+            background-color: #FF9800;
+            color: white;
+        }
+        .ui {
+            background-color: #333;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px;
+        }
+        .ui h3 {
+            margin: 0 0 10px 0;
+        }
+        .instructions {
+            max-width: 300px;
+            margin: 10px auto;
+            text-align: left;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: background-color 0.2s ease;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .game-over {
+            color: #f44336;
+            font-size: 24px;
+            font-weight: bold;
+            animation: pulse 1s infinite;
+        }
+        .victory {
+            color: #4CAF50;
+            font-size: 24px;
+            font-weight: bold;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .mobile-controls {
+            display: none;
+            grid-template-columns: repeat(3, 60px);
+            gap: 10px;
+            justify-content: center;
+            margin: 20px auto;
+            max-width: 200px;
+        }
+        .mobile-btn {
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        .mobile-btn:active {
+            background-color: #45a049;
+            transform: scale(0.95);
+        }
+        .high-score {
+            background-color: #333;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px;
+            font-size: 14px;
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .tile {
+                width: 25px;
+                height: 25px;
+                font-size: 16px;
+            }
+            .mobile-controls {
+                display: grid;
+            }
+            .instructions {
+                font-size: 14px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .tile {
+                width: 20px;
+                height: 20px;
+                font-size: 14px;
+            }
+            .ui {
+                padding: 10px;
+                font-size: 14px;
+            }
+            #game-board {
+                padding: 5px;
+                margin: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Simple Roguelike</h1>
+        
+        <div id="game-board"></div>
+        
+        <div class="ui">
+            <h3>Player Status</h3>
+            <div>Health: <span id="health">20</span>/20</div>
+            <div>Attack: <span id="attack">3</span></div>
+            <div>Turn: <span id="turn">1</span></div>
+        </div>
+        
+        <div id="game-message" class="ui"></div>
+        
+        <div class="high-score">
+            <h3>Best Score</h3>
+            <div>Fastest Win: <span id="best-turns">--</span> turns</div>
+            <div>Most Enemies: <span id="most-enemies">--</span></div>
+        </div>
+        
+        <div class="mobile-controls">
+            <div></div>
+            <button class="mobile-btn up-btn">↑</button>
+            <div></div>
+            <button class="mobile-btn left-btn">←</button>
+            <div></div>
+            <button class="mobile-btn right-btn">→</button>
+            <div></div>
+            <button class="mobile-btn down-btn">↓</button>
+            <div></div>
+        </div>
+        
+        <div class="instructions">
+            <h3>Instructions:</h3>
+            <ul>
+                <li>Use WASD, Arrow Keys, or touch controls to move</li>
+                <li>🧙 = You, 👾 = Enemy, 🧪 = Health Potion, 🚪 = Exit</li>
+                <li>Walk into enemies to attack them</li>
+                <li>Walk into potions to heal</li>
+                <li>Reach the door to win!</li>
+            </ul>
+        </div>
+        
+        <button id="newGameBtn">New Game</button>
+    </div>
+
+    <script>
+        class Game {
+            constructor() {
+                this.width = 15;
+                this.height = 15;
+                this.player = { x: 1, y: 1, health: 20, maxHealth: 20, attack: 3 };
+                this.enemies = [];
+                this.items = [];
+                this.exit = null;
+                this.turn = 1;
+                this.gameState = 'playing'; // 'playing', 'gameOver', 'victory'
+                this.totalEnemies = 0;
+                this.defeatedEnemies = 0;
+                
+                // Load high scores from localStorage
+                this.loadHighScores();
+                
+                // Initialize sound effects
+                this.initSounds();
+                
+                this.initializeBoard();
+                this.generateLevel();
+                this.setupEventListeners();
+                this.render();
+                this.updateHighScoreDisplay();
+            }
+            
+            initSounds() {
+                // Create simple sound effects using Web Audio API
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Preload sounds (we'll create them on demand for simplicity)
+                this.sounds = {
+                    attack: this.createSound(200, 0.1, 'square'),
+                    damage: this.createSound(150, 0.15, 'sawtooth'),
+                    heal: this.createSound(400, 0.2, 'sine'),
+                    victory: this.createSound(500, 0.3, 'sine')
+                };
+            }
+            
+            createSound(frequency, duration, type = 'sine') {
+                return () => {
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    oscillator.frequency.value = frequency;
+                    oscillator.type = type;
+                    
+                    gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+                    
+                    oscillator.start(this.audioContext.currentTime);
+                    oscillator.stop(this.audioContext.currentTime + duration);
+                };
+            }
+            
+            playSound(soundName) {
+                try {
+                    if (this.sounds[soundName]) {
+                        this.sounds[soundName]();
+                    }
+                } catch (e) {
+                    // Ignore sound errors
+                }
+            }
+            
+            animateTile(x, y) {
+                const gameBoard = document.getElementById('game-board');
+                const tileIndex = y * this.width + x;
+                const tile = gameBoard.children[tileIndex];
+                
+                if (tile) {
+                    tile.classList.add('animate');
+                    setTimeout(() => {
+                        tile.classList.remove('animate');
+                    }, 150);
+                }
+            }
+            
+            loadHighScores() {
+                try {
+                    this.highScores = {
+                        fastestWin: parseInt(localStorage.getItem('roguelike-fastest-win')) || null,
+                        mostEnemies: parseInt(localStorage.getItem('roguelike-most-enemies')) || 0
+                    };
+                } catch (e) {
+                    // Fallback when localStorage is not available (file:// protocol)
+                    this.highScores = {
+                        fastestWin: null,
+                        mostEnemies: 0
+                    };
+                }
+            }
+            
+            saveHighScore() {
+                try {
+                    if (this.gameState === 'victory') {
+                        if (!this.highScores.fastestWin || this.turn < this.highScores.fastestWin) {
+                            this.highScores.fastestWin = this.turn;
+                            localStorage.setItem('roguelike-fastest-win', this.turn.toString());
+                        }
+                    }
+                    
+                    if (this.defeatedEnemies > this.highScores.mostEnemies) {
+                        this.highScores.mostEnemies = this.defeatedEnemies;
+                        localStorage.setItem('roguelike-most-enemies', this.defeatedEnemies.toString());
+                    }
+                } catch (e) {
+                    // Silently fail when localStorage is not available
+                    console.log('High scores not saved - localStorage unavailable');
+                }
+                
+                this.updateHighScoreDisplay();
+            }
+            
+            updateHighScoreDisplay() {
+                document.getElementById('best-turns').textContent = this.highScores.fastestWin || '--';
+                document.getElementById('most-enemies').textContent = this.highScores.mostEnemies || '--';
+            }
+            
+            initializeBoard() {
+                this.board = [];
+                for (let y = 0; y < this.height; y++) {
+                    this.board[y] = [];
+                    for (let x = 0; x < this.width; x++) {
+                        // Create walls around border, floors inside
+                        if (x === 0 || x === this.width - 1 || y === 0 || y === this.height - 1) {
+                            this.board[y][x] = 'wall';
+                        } else {
+                            this.board[y][x] = 'floor';
+                        }
+                    }
+                }
+            }
+            
+            generateLevel() {
+                // Add some random walls
+                for (let i = 0; i < 20; i++) {
+                    const x = Math.floor(Math.random() * (this.width - 2)) + 1;
+                    const y = Math.floor(Math.random() * (this.height - 2)) + 1;
+                    this.board[y][x] = 'wall';
+                }
+                
+                // Place enemies
+                this.enemies = [];
+                this.totalEnemies = 5;
+                for (let i = 0; i < this.totalEnemies; i++) {
+                    let x, y;
+                    do {
+                        x = Math.floor(Math.random() * (this.width - 2)) + 1;
+                        y = Math.floor(Math.random() * (this.height - 2)) + 1;
+                    } while (this.board[y][x] !== 'floor' || (x === this.player.x && y === this.player.y));
+                    
+                    this.enemies.push({ x, y, health: 5 });
+                }
+                
+                // Place health potions
+                this.items = [];
+                for (let i = 0; i < 3; i++) {
+                    let x, y;
+                    do {
+                        x = Math.floor(Math.random() * (this.width - 2)) + 1;
+                        y = Math.floor(Math.random() * (this.height - 2)) + 1;
+                    } while (this.board[y][x] !== 'floor' || 
+                             (x === this.player.x && y === this.player.y) ||
+                             this.enemies.some(e => e.x === x && e.y === y));
+                    
+                    this.items.push({ x, y, type: 'health' });
+                }
+                
+                // Place exit
+                do {
+                    this.exit = {
+                        x: Math.floor(Math.random() * (this.width - 2)) + 1,
+                        y: Math.floor(Math.random() * (this.height - 2)) + 1
+                    };
+                } while (this.board[this.exit.y][this.exit.x] !== 'floor' || 
+                         (this.exit.x === this.player.x && this.exit.y === this.player.y) ||
+                         this.enemies.some(e => e.x === this.exit.x && e.y === this.exit.y) ||
+                         this.items.some(i => i.x === this.exit.x && i.y === this.exit.y));
+            }
+            
+            setupEventListeners() {
+                document.addEventListener('keydown', (e) => {
+                    if (this.gameState !== 'playing') return;
+                    
+                    let dx = 0, dy = 0;
+                    
+                    switch(e.key.toLowerCase()) {
+                        case 'w':
+                        case 'arrowup':
+                            dy = -1;
+                            break;
+                        case 's':
+                        case 'arrowdown':
+                            dy = 1;
+                            break;
+                        case 'a':
+                        case 'arrowleft':
+                            dx = -1;
+                            break;
+                        case 'd':
+                        case 'arrowright':
+                            dx = 1;
+                            break;
+                        default:
+                            return;
+                    }
+                    
+                    e.preventDefault();
+                    this.movePlayer(dx, dy);
+                });
+                
+                // Add swipe support
+                let startX, startY;
+                const gameBoard = document.getElementById('game-board');
+                
+                gameBoard.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    startX = touch.clientX;
+                    startY = touch.clientY;
+                });
+                
+                gameBoard.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    if (!startX || !startY) return;
+                    
+                    const touch = e.changedTouches[0];
+                    const diffX = touch.clientX - startX;
+                    const diffY = touch.clientY - startY;
+                    
+                    if (Math.abs(diffX) > Math.abs(diffY)) {
+                        // Horizontal swipe
+                        this.movePlayer(diffX > 0 ? 1 : -1, 0);
+                    } else {
+                        // Vertical swipe
+                        this.movePlayer(0, diffY > 0 ? 1 : -1);
+                    }
+                    
+                    startX = null;
+                    startY = null;
+                });
+            }
+            
+            movePlayer(dx, dy) {
+                const newX = this.player.x + dx;
+                const newY = this.player.y + dy;
+                
+                // Check boundaries
+                if (newX < 0 || newX >= this.width || newY < 0 || newY >= this.height) {
+                    return;
+                }
+                
+                // Check walls
+                if (this.board[newY][newX] === 'wall') {
+                    return;
+                }
+                
+                // Animate player movement
+                this.animateTile(newX, newY);
+                
+                // Check enemy collision
+                const enemy = this.enemies.find(e => e.x === newX && e.y === newY);
+                if (enemy) {
+                    this.playSound('attack');
+                    this.attackEnemy(enemy);
+                    this.enemyTurn();
+                    this.turn++;
+                    this.updateUI();
+                    return;
+                }
+                
+                // Check item collision
+                const itemIndex = this.items.findIndex(i => i.x === newX && i.y === newY);
+                if (itemIndex !== -1) {
+                    this.collectItem(itemIndex);
+                }
+                
+                // Check exit collision
+                if (this.exit.x === newX && this.exit.y === newY) {
+                    this.gameState = 'victory';
+                    this.playSound('victory');
+                    this.saveHighScore();
+                    this.updateUI();
+                    this.render();
+                    return;
+                }
+                
+                // Move player
+                this.player.x = newX;
+                this.player.y = newY;
+                this.enemyTurn();
+                this.turn++;
+                this.updateUI();
+                this.render();
+            }
+            
+            attackEnemy(enemy) {
+                enemy.health -= this.player.attack;
+                this.animateTile(enemy.x, enemy.y);
+                
+                if (enemy.health <= 0) {
+                    const index = this.enemies.indexOf(enemy);
+                    this.enemies.splice(index, 1);
+                    this.defeatedEnemies++;
+                    this.showMessage('Enemy defeated! 💥');
+                } else {
+                    this.showMessage(`Enemy hit for ${this.player.attack} damage!`);
+                }
+            }
+            
+            collectItem(itemIndex) {
+                const item = this.items[itemIndex];
+                if (item.type === 'health') {
+                    this.player.health = Math.min(this.player.maxHealth, this.player.health + 5);
+                    this.playSound('heal');
+                    this.showMessage('Health restored! ❤️');
+                }
+                this.items.splice(itemIndex, 1);
+            }
+            
+            enemyTurn() {
+                for (const enemy of this.enemies) {
+                    // Simple AI: move toward player
+                    const dx = this.player.x - enemy.x;
+                    const dy = this.player.y - enemy.y;
+                    
+                    let moveX = 0, moveY = 0;
+                    
+                    if (Math.abs(dx) > Math.abs(dy)) {
+                        moveX = dx > 0 ? 1 : -1;
+                    } else {
+                        moveY = dy > 0 ? 1 : -1;
+                    }
+                    
+                    const newX = enemy.x + moveX;
+                    const newY = enemy.y + moveY;
+                    
+                    // Check if enemy can move to new position
+                    if (this.board[newY] && this.board[newY][newX] === 'floor' &&
+                        !this.enemies.some(e => e.x === newX && e.y === newY)) {
+                        
+                        if (newX === this.player.x && newY === this.player.y) {
+                            // Enemy attacks player
+                            this.player.health -= 2;
+                            this.playSound('damage');
+                            this.animateTile(this.player.x, this.player.y);
+                            this.showMessage('Enemy attacks! You take 2 damage. 💔');
+                            if (this.player.health <= 0) {
+                                this.gameState = 'gameOver';
+                                this.saveHighScore();
+                                this.updateUI();
+                                this.render();
+                                return;
+                            }
+                        } else {
+                            enemy.x = newX;
+                            enemy.y = newY;
+                        }
+                    }
+                }
+            }
+            
+            showMessage(message) {
+                document.getElementById('game-message').innerHTML = message;
+                setTimeout(() => {
+                    if (this.gameState === 'playing') {
+                        document.getElementById('game-message').textContent = '';
+                    }
+                }, 2000);
+            }
+            
+            updateUI() {
+                document.getElementById('health').textContent = this.player.health;
+                document.getElementById('attack').textContent = this.player.attack;
+                document.getElementById('turn').textContent = this.turn;
+                
+                const messageEl = document.getElementById('game-message');
+                if (this.gameState === 'gameOver') {
+                    messageEl.innerHTML = '<div class="game-over">GAME OVER 💀</div>';
+                } else if (this.gameState === 'victory') {
+                    messageEl.innerHTML = '<div class="victory">VICTORY! 🎉</div>';
+                }
+            }
+            
+            render() {
+                const gameBoard = document.getElementById('game-board');
+                gameBoard.style.gridTemplateColumns = `repeat(${this.width}, 30px)`;
+                gameBoard.innerHTML = '';
+                
+                for (let y = 0; y < this.height; y++) {
+                    for (let x = 0; x < this.width; x++) {
+                        const tile = document.createElement('div');
+                        tile.className = 'tile';
+                        
+                        // Determine what's on this tile
+                        if (x === this.player.x && y === this.player.y) {
+                            tile.className += ' player';
+                            tile.textContent = '🧙';
+                        } else if (this.enemies.some(e => e.x === x && e.y === y)) {
+                            tile.className += ' enemy';
+                            tile.textContent = '👾';
+                        } else if (this.items.some(i => i.x === x && i.y === y)) {
+                            tile.className += ' item';
+                            tile.textContent = '🧪';
+                        } else if (this.exit && this.exit.x === x && this.exit.y === y) {
+                            tile.className += ' exit';
+                            tile.textContent = '🚪';
+                        } else if (this.board[y][x] === 'wall') {
+                            tile.className += ' wall';
+                            tile.textContent = '🧱';
+                        } else {
+                            tile.className += ' floor';
+                            tile.textContent = '·';
+                        }
+                        
+                        gameBoard.appendChild(tile);
+                    }
+                }
+            }
+            
+            restart() {
+                this.player = { x: 1, y: 1, health: 20, maxHealth: 20, attack: 3 };
+                this.enemies = [];
+                this.items = [];
+                this.exit = null;
+                this.turn = 1;
+                this.gameState = 'playing';
+                this.defeatedEnemies = 0;
+                
+                this.initializeBoard();
+                this.generateLevel();
+                this.updateUI();
+                this.render();
+                document.getElementById('game-message').textContent = '';
+            }
+        }
+        
+        // Start the game
+        const game = new Game();
+        
+        // Add event listener for the new game button
+        document.getElementById('newGameBtn').addEventListener('click', () => {
+            game.restart();
+        });
+        
+        // Add event listeners for mobile controls
+        document.querySelector('.up-btn').addEventListener('click', () => game.movePlayer(0, -1));
+        document.querySelector('.down-btn').addEventListener('click', () => game.movePlayer(0, 1));
+        document.querySelector('.left-btn').addEventListener('click', () => game.movePlayer(-1, 0));
+        document.querySelector('.right-btn').addEventListener('click', () => game.movePlayer(1, 0));
+    </script>
+</body>
+</html>
